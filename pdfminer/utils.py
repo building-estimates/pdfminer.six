@@ -404,3 +404,10 @@ class Plane:
                         or y1 <= obj.y0:
                     continue
                 yield obj
+
+def intersect_paths(ccp, curpath):
+    # We currently assume that the initial ccp always is the whole media box
+    # TODO: find we lightweight method to extract the intersected paths of ccp and curpath
+    # in case ccp is not the whole media box
+    intersection_paths = curpath
+    return intersection_paths            

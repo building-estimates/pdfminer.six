@@ -29,7 +29,7 @@ from .pdfcolor import PREDEFINED_COLORSPACE
 from .utils import choplist
 from .utils import mult_matrix
 from .utils import MATRIX_IDENTITY
-
+from .utils import intersect_paths
 
 log = logging.getLogger(__name__)
 
@@ -109,6 +109,7 @@ class PDFGraphicState:
 
         # non stroking color
         self.ncolor = None
+
         return
 
     def copy(self):
@@ -362,7 +363,7 @@ class PDFPageInterpreter:
                     self.xobjmap[xobjid] = xobjstrm
         return
 
-    def init_state(self, ctm):
+    def init_state(self, ctm, mediabox):
         """Initialize the text and graphic states for rendering a page."""
         self.gstack = []  # stack for graphical states.
         self.ctm = ctm
@@ -374,6 +375,18 @@ class PDFPageInterpreter:
         self.argstack = []
         # set some global states.
         self.scs = self.ncs = None
+        # current clipping path
+        self.ccp = []
+        self.ccp_ctm = ctm
+        if mediabox:
+            # Initialize the current clipping path with the whole media box area
+            self.ccp.append(('m', mediabox[0], mediabox[1]))
+            self.ccp.append(('l', mediabox[2], mediabox[1]))
+            self.ccp.append(('l', mediabox[2], mediabox[3]))
+            self.ccp.append(('l', mediabox[0], mediabox[3]))
+            self.ccp.append(('h',))
+
+        self.ccp_flag_on = False
         if self.csmap:
             self.scs = self.ncs = next(iter(self.csmap.values()))
         return
@@ -390,10 +403,11 @@ class PDFPageInterpreter:
         return x
 
     def get_current_state(self):
-        return (self.ctm, self.textstate.copy(), self.graphicstate.copy())
+        return (self.ctm, self.ccp, self.ccp_ctm, self.ccp_flag_on, self.textstate.copy(), self.graphicstate.copy())
 
     def set_current_state(self, state):
-        (self.ctm, self.textstate, self.graphicstate) = state
+        (self.ctm, self.ccp, self.ccp_ctm, self.ccp_flag_on,
+         self.textstate, self.graphicstate) = state
         self.device.set_ctm(self.ctm)
         return
 
@@ -495,8 +509,12 @@ class PDFPageInterpreter:
 
     def do_S(self):
         """Stroke path"""
-        self.device.paint_path(self.graphicstate, True, False, False,
-                               self.curpath)
+        if self.ccp_flag_on:
+            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, True, False, False,
+                                            self.curpath, self.ccp)
+        else:
+            self.device.paint_path(self.ctm, self.graphicstate, True, False, False,
+                                   self.curpath)
         self.curpath = []
         return
 
@@ -508,8 +526,12 @@ class PDFPageInterpreter:
 
     def do_f(self):
         """Fill path using nonzero winding number rule"""
-        self.device.paint_path(self.graphicstate, False, True, False,
-                               self.curpath)
+        if self.ccp_flag_on:
+            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, False, True, False,
+                                            self.curpath, self.ccp)
+        else:
+            self.device.paint_path(self.ctm, self.graphicstate, False, True, False,
+                                   self.curpath)
         self.curpath = []
         return
 
@@ -519,22 +541,34 @@ class PDFPageInterpreter:
 
     def do_f_a(self):
         """Fill path using even-odd rule"""
-        self.device.paint_path(self.graphicstate, False, True, True,
-                               self.curpath)
+        if self.ccp_flag_on:
+            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, False, True, True,
+                                            self.curpath, self.ccp)
+        else:
+            self.device.paint_path(self.ctm, self.graphicstate, False, True, True,
+                                   self.curpath)
         self.curpath = []
         return
 
     def do_B(self):
         """Fill and stroke path using nonzero winding number rule"""
-        self.device.paint_path(self.graphicstate, True, True, False,
-                               self.curpath)
+        if self.ccp_flag_on:
+            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, True, True, False,
+                                            self.curpath, self.ccp)
+        else:
+            self.device.paint_path(self.ctm, self.graphicstate, True, True, False,
+                                   self.curpath)
         self.curpath = []
         return
 
     def do_B_a(self):
         """Fill and stroke path using even-odd rule"""
-        self.device.paint_path(self.graphicstate, True, True, True,
-                               self.curpath)
+        if self.ccp_flag_on:
+            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, True, True, True,
+                                            self.curpath, self.ccp)
+        else:
+            self.device.paint_path(self.ctm, self.graphicstate, True, True, True,
+                                   self.curpath)
         self.curpath = []
         return
 
@@ -557,10 +591,18 @@ class PDFPageInterpreter:
 
     def do_W(self):
         """Set clipping path using nonzero winding number rule"""
+        # Set clipping path boundary by intersecting ccp with curpath
+        self.ccp = intersect_paths(self.ccp, self.curpath)
+        self.ccp_ctm = self.ctm
+        self.ccp_flag_on = True
+        # TODO: define inside and outside regions using nonzero winding number rule
         return
 
     def do_W_a(self):
         """Set clipping path using even-odd rule"""
+        # Set clipping path boundary
+        self.do_W()
+        # TODO: define inside and outside regions using even-odd rule
         return
 
     def do_CS(self, name):
@@ -891,12 +933,14 @@ class PDFPageInterpreter:
             ctm = (0, 1, -1, 0, y1, -x0)
         else:
             ctm = (1, 0, 0, 1, -x0, -y0)
+
         self.device.begin_page(page, ctm)
-        self.render_contents(page.resources, page.contents, ctm=ctm)
+        self.render_contents(page.resources, page.contents,
+                             page.mediabox, ctm=ctm)
         self.device.end_page(page)
         return
 
-    def render_contents(self, resources, streams, ctm=MATRIX_IDENTITY):
+    def render_contents(self, resources, streams, mediabox=None, ctm=MATRIX_IDENTITY):
         """Render the content streams.
 
         This method may be called recursively.
@@ -904,7 +948,7 @@ class PDFPageInterpreter:
         log.info('render_contents: resources=%r, streams=%r, ctm=%r',
                  resources, streams, ctm)
         self.init_resources(resources)
-        self.init_state(ctm)
+        self.init_state(ctm, mediabox)
         self.execute(list_value(streams))
         return
 
