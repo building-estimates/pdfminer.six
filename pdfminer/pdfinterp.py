@@ -26,7 +26,7 @@ from .pdffont import PDFType3Font
 from .pdffont import PDFCIDFont
 from .pdfcolor import PDFColorSpace
 from .pdfcolor import PREDEFINED_COLORSPACE
-from .utils import choplist
+from .utils import apply_matrix_pt, choplist
 from .utils import mult_matrix
 from .utils import MATRIX_IDENTITY
 from .utils import intersect_paths
@@ -377,7 +377,6 @@ class PDFPageInterpreter:
         self.scs = self.ncs = None
         # current clipping path
         self.ccp = []
-        self.ccp_ctm = ctm
         if mediabox:
             # Initialize the current clipping path with the whole media box area
             self.ccp.append(('m', mediabox[0], mediabox[1]))
@@ -403,10 +402,10 @@ class PDFPageInterpreter:
         return x
 
     def get_current_state(self):
-        return (self.ctm, self.ccp, self.ccp_ctm, self.ccp_flag_on, self.textstate.copy(), self.graphicstate.copy())
+        return (self.ctm, self.ccp, self.ccp_flag_on, self.textstate.copy(), self.graphicstate.copy())
 
     def set_current_state(self, state):
-        (self.ctm, self.ccp, self.ccp_ctm, self.ccp_flag_on,
+        (self.ctm, self.ccp, self.ccp_flag_on,
          self.textstate, self.graphicstate) = state
         self.device.set_ctm(self.ctm)
         return
@@ -470,27 +469,37 @@ class PDFPageInterpreter:
 
     def do_m(self, x, y):
         """Begin new subpath"""
-        self.curpath.append(('m', x, y))
+        (point_x, point_y) = apply_matrix_pt(self.ctm, (x, y))
+        self.curpath.append(('m', point_x, point_y))
         return
 
     def do_l(self, x, y):
         """Append straight line segment to path"""
-        self.curpath.append(('l', x, y))
+        (point_x, point_y) = apply_matrix_pt(self.ctm, (x, y))
+        self.curpath.append(('l', point_x, point_y))
         return
 
     def do_c(self, x1, y1, x2, y2, x3, y3):
         """Append curved segment to path (three control points)"""
-        self.curpath.append(('c', x1, y1, x2, y2, x3, y3))
+        (point_x1, point_y1) = apply_matrix_pt(self.ctm, (x1, y1))
+        (point_x2, point_y2) = apply_matrix_pt(self.ctm, (x2, y2))
+        (point_x3, point_y3) = apply_matrix_pt(self.ctm, (x3, y3))
+        self.curpath.append(
+            ('c', point_x1, point_y1, point_x2, point_y2, point_x3, point_y3))
         return
 
     def do_v(self, x2, y2, x3, y3):
         """Append curved segment to path (initial point replicated)"""
-        self.curpath.append(('v', x2, y2, x3, y3))
+        (point_x2, point_y2) = apply_matrix_pt(self.ctm, (x2, y2))
+        (point_x3, point_y3) = apply_matrix_pt(self.ctm, (x3, y3))
+        self.curpath.append(('v', point_x2, point_y2, point_x3, point_y3))
         return
 
     def do_y(self, x1, y1, x3, y3):
         """Append curved segment to path (final point replicated)"""
-        self.curpath.append(('y', x1, y1, x3, y3))
+        (point_x1, point_y1) = apply_matrix_pt(self.ctm, (x1, y1))
+        (point_x3, point_y3) = apply_matrix_pt(self.ctm, (x3, y3))
+        self.curpath.append(('y', point_x1, point_y1, point_x3, point_y3))
         return
 
     def do_h(self):
@@ -500,20 +509,22 @@ class PDFPageInterpreter:
 
     def do_re(self, x, y, w, h):
         """Append rectangle to path"""
-        self.curpath.append(('m', x, y))
-        self.curpath.append(('l', x+w, y))
-        self.curpath.append(('l', x+w, y+h))
-        self.curpath.append(('l', x, y+h))
+        (point_x1, point_y1) = apply_matrix_pt(self.ctm, (x, y))
+        (point_x2, point_y2) = apply_matrix_pt(self.ctm, (x+w, y+h))
+        self.curpath.append(('m', point_x1, point_y1))
+        self.curpath.append(('l', point_x2, point_y1))
+        self.curpath.append(('l', point_x2, point_y2))
+        self.curpath.append(('l', point_x1, point_y2))
         self.curpath.append(('h',))
         return
 
     def do_S(self):
         """Stroke path"""
         if self.ccp_flag_on:
-            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, True, False, False,
+            self.device.paint_clipping_path(self.graphicstate, True, False, False,
                                             self.curpath, self.ccp)
         else:
-            self.device.paint_path(self.ctm, self.graphicstate, True, False, False,
+            self.device.paint_path(self.graphicstate, True, False, False,
                                    self.curpath)
         self.curpath = []
         return
@@ -527,10 +538,10 @@ class PDFPageInterpreter:
     def do_f(self):
         """Fill path using nonzero winding number rule"""
         if self.ccp_flag_on:
-            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, False, True, False,
+            self.device.paint_clipping_path(self.graphicstate, False, True, False,
                                             self.curpath, self.ccp)
         else:
-            self.device.paint_path(self.ctm, self.graphicstate, False, True, False,
+            self.device.paint_path(self.graphicstate, False, True, False,
                                    self.curpath)
         self.curpath = []
         return
@@ -542,10 +553,10 @@ class PDFPageInterpreter:
     def do_f_a(self):
         """Fill path using even-odd rule"""
         if self.ccp_flag_on:
-            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, False, True, True,
+            self.device.paint_clipping_path(self.graphicstate, False, True, True,
                                             self.curpath, self.ccp)
         else:
-            self.device.paint_path(self.ctm, self.graphicstate, False, True, True,
+            self.device.paint_path(self.graphicstate, False, True, True,
                                    self.curpath)
         self.curpath = []
         return
@@ -553,10 +564,10 @@ class PDFPageInterpreter:
     def do_B(self):
         """Fill and stroke path using nonzero winding number rule"""
         if self.ccp_flag_on:
-            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, True, True, False,
+            self.device.paint_clipping_path(self.graphicstate, True, True, False,
                                             self.curpath, self.ccp)
         else:
-            self.device.paint_path(self.ctm, self.graphicstate, True, True, False,
+            self.device.paint_path(self.graphicstate, True, True, False,
                                    self.curpath)
         self.curpath = []
         return
@@ -564,10 +575,10 @@ class PDFPageInterpreter:
     def do_B_a(self):
         """Fill and stroke path using even-odd rule"""
         if self.ccp_flag_on:
-            self.device.paint_clipping_path(self.ccp_ctm, self.graphicstate, True, True, True,
+            self.device.paint_clipping_path(self.graphicstate, True, True, True,
                                             self.curpath, self.ccp)
         else:
-            self.device.paint_path(self.ctm, self.graphicstate, True, True, True,
+            self.device.paint_path(self.graphicstate, True, True, True,
                                    self.curpath)
         self.curpath = []
         return
@@ -593,7 +604,6 @@ class PDFPageInterpreter:
         """Set clipping path using nonzero winding number rule"""
         # Set clipping path boundary by intersecting ccp with curpath
         self.ccp = intersect_paths(self.ccp, self.curpath)
-        self.ccp_ctm = self.ctm
         self.ccp_flag_on = True
         # TODO: define inside and outside regions using nonzero winding number rule
         return

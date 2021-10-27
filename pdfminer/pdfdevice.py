@@ -57,7 +57,7 @@ class PDFDevice:
     def render_string(self, textstate, seq, ncs, graphicstate):
         return
 
-    def paint_clipping_path(self, ccp_ctm, graphicstate, stroke, fill, evenodd, paths, ccp):
+    def paint_clipping_path(self, graphicstate, stroke, fill, evenodd, paths, ccp):
         return
 
 
