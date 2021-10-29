@@ -1,0 +1,29 @@
+package:
+  name: "pdfminer"
+  version: {{ environ.get('GIT_DESCRIBE_TAG', 'v0.0').replace('v', '') + '.' + environ.get('GIT_DESCRIBE_NUMBER', '0') }}
+
+source:
+  git_url: git@github.com:building-estimates/pdfminer.six.git
+
+requirements:
+  build:
+    - python 3.8.3
+    - setuptools
+    - numpy 1.21
+
+  run:
+    - python 3.8.3
+    - numpy 1.21
+    - pytorch 1.7.0
+    - torchvision 0.8.1
+    - scipy #1.7.1
+    - opencv-python-headless #4.5.3
+    - matplotlib #3.4.3
+    - pillow
+
+test:
+  imports:
+    - pdfminer
+
+about:
+  home: https://https://github.com/building-estimates/pdfminer.six

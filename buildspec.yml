@@ -1,0 +1,30 @@
+---
+version: 0.2
+env:
+  variables:
+    CHANNEL_DIR: /mnt/channels
+phases:
+  install:
+    commands:
+      # Setup custom conda channel
+      - mkdir ${CHANNEL_DIR}
+      - goofys $conda_channel_bucket ${CHANNEL_DIR}
+      # Prepare ssh keys
+      - mkdir -p ~/.ssh
+      - echo "$ssh_key" > ~/.ssh/id_rsa
+      - echo "$ssh_pub" > ~/.ssh/id_rsa.pub
+      - chmod 600 ~/.ssh/id_rsa
+      - eval "$(ssh-agent -s)"
+      - ssh-add
+      - echo `ssh-add -l`
+      - ssh-keyscan github.com >> ~/.ssh/known_hosts
+  build:
+    commands:
+      # Build conda package
+      - conda build --no-include-recipe --channel pytorch --channel conda-forge --channel fastai
+            --output-folder ${CHANNEL_DIR}/$conda_channel_name .
+      - conda index --no-progress ${CHANNEL_DIR}/$conda_channel_name
+
+      # docker build -f Dockerfile.codebuild -t conda.codebuild .
+      # aws-vault exec be-ci -- ./codebuild_build.sh -i conda.codebuild -a artifacts -c -d -s .
+      # docker run --privileged -v $PWD:/root/src -it conda.codebuild /bin/bash
