@@ -7,6 +7,7 @@ import struct
 from html import escape
 
 import chardet  # For str encoding detection
+from shapely.geometry import Polygon
 
 # from sys import maxint as INF doesn't work anymore under Python3, but PDF
 # still uses 32 bits ints
@@ -19,6 +20,7 @@ class open_filename(object):
     (str or pathlib.PurePath type is supported) and closes it on exit,
     (just like `open`), but does nothing for file-like objects.
     """
+
     def __init__(self, filename, *args, **kwargs):
         if isinstance(filename, pathlib.PurePath):
             filename = str(filename)
@@ -404,3 +406,64 @@ class Plane:
                         or y1 <= obj.y0:
                     continue
                 yield obj
+
+
+def intersect_paths(ccp, curpath):
+    # In the simplest case (most of the time), curpath usually lies entirely inside ccp region
+    # in that case all bellow code can be replaced by just 1 line:
+    # intersection_paths = curpath
+
+    # we require that ccp and curpath must have at least 3 tuples inside to be a meaningful filled path
+    if len(ccp) < 3 or len(curpath) < 3:
+        return []
+
+    ccp_paths = []
+    polyline_path = []
+    intersection_polygons = []
+
+    # form polygon(s) from the current clipping path
+    for path in ccp:
+        if path[0] == 'h':  # close path
+            polyline_path.append(polyline_path[0])
+            ccp_paths.append(polyline_path)
+            polyline_path = []
+        else:
+            polyline_path.append((path[1], path[2]))
+    ccp_polygons = [Polygon(path) for path in ccp_paths]
+
+    # form polygon(s) from curpath then intersect each of them to ccp polygon(s)
+    polyline_path = []
+    for path in curpath:
+        if path[0] == 'h':  # close path
+            polyline_path.append(polyline_path[0])
+            polygon = Polygon(polyline_path)
+            intersection_polygons.extend(
+                [polygon.intersection(ccp_polygon) for ccp_polygon in ccp_polygons])
+            polyline_path = []
+        else:
+            polyline_path.append((path[1], path[2]))
+
+    # convert back intersection_polygons to intersection_paths
+    intersection_paths = []
+    for polygon in intersection_polygons:
+        if isinstance(polygon, Polygon):
+            intersection_paths = intersection_paths + polygon_to_path(polygon)
+        else:
+            # sometimes the intersection result is not a polygon object
+            # for now we just ignore those cases as it does not happen so often
+            # and will not affect significantly on our results
+            pass
+
+    return intersection_paths
+
+
+def polygon_to_path(polygon):
+    path = []
+    if len(polygon.exterior.coords) > 0:
+        path.append(
+            ('m', polygon.exterior.coords[0][0], polygon.exterior.coords[0][1]))
+        path.extend([('l', point[0], point[1])
+                    for point in polygon.exterior.coords[1:-1]])
+        path.append(('h',))
+
+    return path
