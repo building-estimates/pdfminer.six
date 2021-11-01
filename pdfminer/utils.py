@@ -437,8 +437,11 @@ def intersect_paths(ccp, curpath):
         if path[0] == 'h':  # close path
             polyline_path.append(polyline_path[0])
             polygon = Polygon(polyline_path)
-            intersection_polygons.extend(
-                [polygon.intersection(ccp_polygon) for ccp_polygon in ccp_polygons])
+            try:
+                intersection_polygons.extend(
+                    [polygon.intersection(ccp_polygon) for ccp_polygon in ccp_polygons])
+            except Exception:  # Can throw some nested exceptions we cannot import
+                return []
             polyline_path = []
         else:
             polyline_path.append((path[1], path[2]))
@@ -463,7 +466,7 @@ def polygon_to_path(polygon):
         path.append(
             ('m', polygon.exterior.coords[0][0], polygon.exterior.coords[0][1]))
         path.extend([('l', point[0], point[1])
-                    for point in polygon.exterior.coords[1:-1]])
+                     for point in polygon.exterior.coords[1:-1]])
         path.append(('h',))
 
     return path
