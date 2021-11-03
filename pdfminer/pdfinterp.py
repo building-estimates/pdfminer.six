@@ -604,7 +604,10 @@ class PDFPageInterpreter:
         """Set clipping path using nonzero winding number rule"""
         # Set clipping path boundary by intersecting ccp with curpath
         self.ccp = intersect_paths(self.ccp, self.curpath)
-        self.ccp_flag_on = True
+        if self.ccp:
+            self.ccp_flag_on = True
+        else:
+            self.ccp_flag_on = False
         # TODO: define inside and outside regions using nonzero winding number rule
         return
 
