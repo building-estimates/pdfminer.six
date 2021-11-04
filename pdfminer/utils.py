@@ -2,12 +2,13 @@
 Miscellaneous Routines.
 """
 import io
+import math
 import pathlib
 import struct
 from html import escape
 
 import chardet  # For str encoding detection
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiLineString, LineString, GeometryCollection
 
 # from sys import maxint as INF doesn't work anymore under Python3, but PDF
 # still uses 32 bits ints
@@ -414,14 +415,14 @@ def intersect_paths(ccp, curpath):
     # intersection_paths = curpath
 
     # we require that ccp and curpath must have at least 3 tuples inside to be a meaningful filled path
-    if len(ccp) < 3 or len(curpath) < 3:
+    if len(ccp) < 3 or len(curpath) < 2:
         return []
 
     ccp_paths = []
     polyline_path = []
-    intersection_polygons = []
+    intersection_objects = []
 
-    # form polygon(s) from the current clipping path
+    # form closed polygon(s) from the current clipping path
     for path in ccp:
         if path[0] == 'h':  # close path
             polyline_path.append(polyline_path[0])
@@ -431,31 +432,85 @@ def intersect_paths(ccp, curpath):
             polyline_path.append((path[1], path[2]))
     ccp_polygons = [Polygon(path) for path in ccp_paths]
 
-    # form polygon(s) from curpath then intersect each of them to ccp polygon(s)
-    polyline_path = []
-    for path in curpath:
-        if path[0] == 'h':  # close path
-            polyline_path.append(polyline_path[0])
-            polygon = Polygon(polyline_path)
-            try:
-                intersection_polygons.extend(
-                    [polygon.intersection(ccp_polygon) for ccp_polygon in ccp_polygons])
-            except Exception:  # Can throw some nested exceptions we cannot import
-                return []
-            polyline_path = []
+    # form geometric objects from curpath then intersect each of them to ccp polygon(s)
+    polyline_paths = []
+
+    for point in curpath:
+        if point[0] == 'm':  # move to
+            polyline_paths.append([(point[1], point[2])])
+        elif point[0] == 'l':  # line to
+            # Ignore consecutive duplicated points
+            if (math.isclose(point[1], polyline_paths[-1][-1][0])
+                    and math.isclose(point[2], polyline_paths[-1][-1][1])):
+                continue
+
+            # If backtracking, change to a move to (start a new path)
+            if (len(polyline_paths[-1]) > 1
+                and (math.isclose(point[1], polyline_paths[-1][-2][0])
+                     and math.isclose(point[2], polyline_paths[-1][-2][1]))):
+                polyline_paths.append([(point[1], point[2])])
+            else:
+                polyline_paths[-1].append((point[1], point[2]))
+        elif point[0] == 'h':  # close path
+            # Don't close if path is a single line, or path is already closed
+            if (polyline_paths and len(polyline_paths[-1]) > 2
+                and not (math.isclose(polyline_paths[-1][0][0], polyline_paths[-1][-1][0])
+                         and math.isclose(polyline_paths[-1][0][1], polyline_paths[-1][-1][1]))):
+                polyline_paths[-1].append(polyline_paths[-1][0])
         else:
-            polyline_path.append((path[1], path[2]))
+            return []
+
+    # filter any incomplete lines (usually end with a move to)
+    polyline_paths = [
+        path
+        for path in polyline_paths
+        if len(path) > 1
+    ]
+
+    # No point in continuing if have an empty set
+    if not polyline_paths:
+        return []
+
+    for polyline_path in polyline_paths:
+        if len(polyline_path) > 2:
+            object = Polygon(polyline_path)
+        else:
+            object = LineString(polyline_path)
+        try:
+            intersection_objects.extend([
+                object.intersection(ccp_polygon)
+                for ccp_polygon in ccp_polygons
+                if object.intersects(ccp_polygon)
+            ])
+        except Exception:  # Can throw some nested exceptions we cannot import
+            return []
 
     # convert back intersection_polygons to intersection_paths
     intersection_paths = []
-    for polygon in intersection_polygons:
-        if isinstance(polygon, Polygon):
-            intersection_paths = intersection_paths + polygon_to_path(polygon)
+    for object in intersection_objects:
+        if isinstance(object, Polygon):
+            intersection_paths = intersection_paths + polygon_to_path(object)
+        elif isinstance(object, LineString):
+            intersection_paths = intersection_paths + linestring_to_path(object)
+        elif isinstance(object, MultiLineString):
+            for linestring in object:
+                intersection_paths = intersection_paths + linestring_to_path(linestring)
+        elif isinstance(object, GeometryCollection):
+            for geom in object:
+                if isinstance(geom, Polygon):
+                    intersection_paths = intersection_paths + polygon_to_path(geom)
+                elif isinstance(geom, LineString):
+                    intersection_paths = intersection_paths + linestring_to_path(geom)
+                elif isinstance(geom, MultiLineString):
+                    for linestring in geom:
+                        intersection_paths = intersection_paths + linestring_to_path(linestring)
+                else:
+                    print(f"Unhandled object {type(geom)}")
         else:
             # sometimes the intersection result is not a polygon object
             # for now we just ignore those cases as it does not happen so often
             # and will not affect significantly on our results
-            pass
+            print(f"Unhandled object {type(object)}")
 
     return intersection_paths
 
@@ -468,5 +523,14 @@ def polygon_to_path(polygon):
         path.extend([('l', point[0], point[1])
                      for point in polygon.exterior.coords[1:-1]])
         path.append(('h',))
+
+    return path
+
+
+def linestring_to_path(linestring):
+    path = []
+    if len(linestring.coords) > 0:
+        path.append(('m', linestring.coords[0][0], linestring.coords[0][1]))
+        path.extend([('l', point[0], point[1]) for point in linestring.coords[1:]])
 
     return path
