@@ -379,10 +379,15 @@ class PDFPageInterpreter:
         self.ccp = []
         if mediabox:
             # Initialize the current clipping path with the whole media box area
-            self.ccp.append(('m', mediabox[0], mediabox[1]))
-            self.ccp.append(('l', mediabox[2], mediabox[1]))
-            self.ccp.append(('l', mediabox[2], mediabox[3]))
-            self.ccp.append(('l', mediabox[0], mediabox[3]))
+            tl = apply_matrix_pt(self.ctm, (mediabox[0], mediabox[1]))
+            tr = apply_matrix_pt(self.ctm, (mediabox[2], mediabox[1]))
+            br = apply_matrix_pt(self.ctm, (mediabox[2], mediabox[3]))
+            bl = apply_matrix_pt(self.ctm, (mediabox[0], mediabox[3]))
+
+            self.ccp.append(('m', tl[0], tl[1]))
+            self.ccp.append(('l', tr[0], tr[1]))
+            self.ccp.append(('l', br[0], br[1]))
+            self.ccp.append(('l', bl[0], bl[1]))
             self.ccp.append(('h',))
 
         self.ccp_flag_on = False
