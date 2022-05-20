@@ -97,7 +97,7 @@ class PDFPage:
                 for c in list_value(tree['Kids']):
                     yield from search(c, tree)
             elif tree_type is LITERAL_PAGE:
-                log.info('Page: %r', tree)
+                # log.info('Page: %r', tree)
                 yield (objid, tree)
         pages = False
         if 'Pages' in document.catalog:

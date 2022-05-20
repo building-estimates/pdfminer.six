@@ -23,7 +23,7 @@ phases:
       # Build conda package
       - conda build --no-include-recipe --channel pytorch --channel conda-forge --channel fastai
             --output-folder ${CHANNEL_DIR}/$conda_channel_name .
-      - LINUX64_PACKAGE=${CHANNEL_DIR}/$conda_channel_name/linux-64/*.tar.bz2 && conda convert --platform osx-64 ${LINUX64_PACKAGE} -o ${CHANNEL_DIR}/$conda_channel_name
+      - LINUX64_PACKAGES=${CHANNEL_DIR}/$conda_channel_name/linux-64/*.tar.bz2 && conda convert --platform osx-64 ${LINUX64_PACKAGES} -o ${CHANNEL_DIR}/$conda_channel_name
       - conda index --no-progress ${CHANNEL_DIR}/$conda_channel_name
 
       # docker build -f Dockerfile.codebuild -t conda.codebuild .
