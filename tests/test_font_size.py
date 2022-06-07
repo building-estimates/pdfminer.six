@@ -4,7 +4,7 @@ from pdfminer.layout import LTChar, LTTextBox
 
 
 def test_font_size():
-    path = absolute_sample_path('font-size-test.pdf')
+    path = absolute_sample_path("font-size-test.pdf")
     for page in extract_pages(path):
         for text_box in page:
             if isinstance(text_box, LTTextBox):
@@ -16,7 +16,4 @@ def test_font_size():
                         for char in line:
                             if isinstance(char, LTChar):
                                 actual_size = int(round(char.size))
-                                print(char, actual_size, expected_size)
                                 assert expected_size == actual_size
-                    else:
-                        print(repr(line.get_text()))

@@ -22,8 +22,8 @@ Check out the source on `github <https://github.com/pdfminer/pdfminer.six>`_.
 Content
 =======
 
-This documentation is organized into four sections (according to the `Divio
-documentation system <https://documentation.divio.com>`_). The
+This documentation is organized into four sections (according to the `Diátaxis
+documentation framework <https://diataxis.fr>`_). The
 :ref:`tutorial` section helps you setup and use pdfminer.six for the first
 time. Read this section if this is your first time working with pdfminer.six.
 The :ref:`howto` offers specific recipies for solving common problems.
@@ -59,11 +59,18 @@ Features
 Installation instructions
 =========================
 
-Before using it, you must install it using Python 3.6 or newer (3.4 and 3.5 are deprecated).
+Before using it, you must install it using Python 3.6 or newer.
 
 ::
 
     $ pip install pdfminer.six
+
+
+Optionally install extra dependencies that are needed to extract jpg images.
+
+::
+
+    $ pip install 'pdfminer.six[image]'
 
 
 Contributing

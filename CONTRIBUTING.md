@@ -27,11 +27,11 @@ Any contribution is appreciated! You might want to:
 ## Guideline for creating pull request
 
 * A pull request should close an existing issue.
-* Pull requests should be merged to develop, not master. This ensures that master always equals the released version.  
-* Include unit tests when possible. In case of bugs, this will help to prevent the same mistake in the future. In case 
+* Pull requests should be merged to master. Version tags are used indicate the releases.
+* Include unit tests when possible. In case of bugs, this will help to prevent the same mistake in the future. In case
   of features, this will show that your code works correctly.
-* Code should work for Python 3.4+.
-* Code should conform to PEP8 coding style.
+* Code should work for Python 3.6+.
+* Code should be formatted with [black](https://github.com/psf/black). 
 * New features should be well documented using docstrings.
 * Check spelling and grammar.
 * Don't forget to update the [CHANGELOG.md](CHANGELOG.md#[Unreleased])
@@ -60,11 +60,17 @@ Any contribution is appreciated! You might want to:
     On all Python versions:
 
     ```sh
-    tox
+    nox
    ```
    
    Or on a single Python version:
    
    ```sh
-    tox -e py36
+    nox -e py36
+    ```
+
+4. After changing the code, run the black formatter.
+
+    ```sh
+    black .
     ```

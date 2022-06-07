@@ -17,5 +17,13 @@ tests/*.xml
 tests/*.txt
 .idea/
 .tox/
+.nox/
+artifacts/
+
+# python venv management tools
 Pipfile
 Pipfile.lock
+.noseids
+.vscode/
+pyproject.toml
+poetry.lock
