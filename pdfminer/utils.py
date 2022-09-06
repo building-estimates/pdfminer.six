@@ -774,6 +774,7 @@ def intersect_paths(ccp, curpath):
     ccp_paths = []
     polyline_path = []
     intersection_objects = []
+    is_closed_path = False
 
     # form closed polygon(s) from the current clipping path
     for path in ccp:
