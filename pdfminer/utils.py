@@ -144,7 +144,7 @@ def apply_png_predictor(
     line_above = b"\x00" * columns
     for scanline_i in range(0, len(data), nbytes + 1):
         filter_type = data[scanline_i]
-        line_encoded = data[scanline_i + 1 : scanline_i + 1 + nbytes]
+        line_encoded = data[scanline_i + 1: scanline_i + 1 + nbytes]
         raw = b""
 
         if filter_type == 0:
@@ -774,6 +774,7 @@ def intersect_paths(ccp, curpath):
     ccp_paths = []
     polyline_path = []
     intersection_objects = []
+    is_closed_path = False
 
     # form closed polygon(s) from the current clipping path
     for path in ccp:
@@ -804,7 +805,15 @@ def intersect_paths(ccp, curpath):
                 polyline_paths.append([(point[1], point[2])])
             else:
                 polyline_paths[-1].append((point[1], point[2]))
+
+            # check if the current point in the path is the same as the start point
+            # then mark this path as closed path
+            if (polyline_paths and len(polyline_paths[-1]) > 2
+                and (math.isclose(polyline_paths[-1][0][0], polyline_paths[-1][-1][0])
+                     and math.isclose(polyline_paths[-1][0][1], polyline_paths[-1][-1][1]))):
+                is_closed_path = True
         elif point[0] == 'h':  # close path
+            is_closed_path = True
             # Don't close if path is a single line, or path is already closed
             if (polyline_paths and len(polyline_paths[-1]) > 2
                 and not (math.isclose(polyline_paths[-1][0][0], polyline_paths[-1][-1][0])
@@ -825,7 +834,7 @@ def intersect_paths(ccp, curpath):
         return []
 
     for polyline_path in polyline_paths:
-        if len(polyline_path) > 2:
+        if len(polyline_path) > 2 and is_closed_path:
             object = Polygon(polyline_path)
         else:
             object = LineString(polyline_path)
@@ -856,7 +865,8 @@ def intersect_paths(ccp, curpath):
                     intersection_paths = intersection_paths + linestring_to_path(geom)
                 elif isinstance(geom, MultiLineString):
                     for linestring in geom:
-                        intersection_paths = intersection_paths + linestring_to_path(linestring)
+                        intersection_paths = intersection_paths + \
+                            linestring_to_path(linestring)
                 else:
                     print(f"Unhandled object {type(geom)}")
         else:
@@ -887,7 +897,8 @@ def linestring_to_path(linestring):
         path.extend([('l', point[0], point[1]) for point in linestring.coords[1:]])
 
     return path
-    
+
+
 ROMAN_ONES = ["i", "x", "c", "m"]
 ROMAN_FIVES = ["v", "l", "d"]
 
