@@ -296,11 +296,11 @@ class PDFContentParser(PSStackParser[Union[PSKeyword, PDFStream]]):
             else:
                 try:
                     j = self.buf.index(target[0], self.charpos)
-                    data += self.buf[self.charpos : j + 1]
+                    data += self.buf[self.charpos: j + 1]
                     self.charpos = j + 1
                     i = 1
                 except ValueError:
-                    data += self.buf[self.charpos :]
+                    data += self.buf[self.charpos:]
                     self.charpos = len(self.buf)
         data = data[: -(len(target) + 1)]  # strip the last part
         data = re.sub(rb"(\x0d\x0a|[\x0d\x0a])$", b"", data)
@@ -1064,6 +1064,8 @@ class PDFPageInterpreter:
         except PSEOF:
             # empty page
             return
+        # we want to keep track the index of current pdf command being proccessed
+        current_pdf_command_index = 0
         while 1:
             try:
                 (_, obj) = parser.nextobject()
@@ -1075,6 +1077,7 @@ class PDFPageInterpreter:
                     "'", "_q"
                 )
                 if hasattr(self, method):
+                    self.device.set_current_pdf_command_index(current_pdf_command_index)
                     func = getattr(self, method)
                     nargs = func.__code__.co_argcount - 1
                     if nargs:
@@ -1085,10 +1088,12 @@ class PDFPageInterpreter:
                     else:
                         log.debug("exec: %s", name)
                         func()
+                    current_pdf_command_index += 1
                 else:
                     if settings.STRICT:
                         error_msg = "Unknown operator: %r" % name
                         raise PDFInterpreterError(error_msg)
             else:
                 self.push(obj)
+
         return
