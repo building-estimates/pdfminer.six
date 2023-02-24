@@ -1,20 +1,21 @@
-from aws_cdk import core as cdk
-from aws_cdk import aws_codebuild as codebuild
+from aws_cdk import Stack, SecretValue
+from constructs import Construct
 from aws_cdk import aws_codepipeline as codepipeline
 from aws_cdk import aws_codepipeline_actions as codepipeline_actions
-from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_codebuild as codebuild
+import aws_cdk.aws_s3 as s3
 
 
-class CondaBuildCdkStack(cdk.Stack):
+class CondaBuildCdkStack(Stack):
 
-    def __init__(self, scope: cdk.Construct, construct_id: str, resource_names: dict, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, resource_names: dict, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         source_artifact = codepipeline.Artifact()
         source_action = codepipeline_actions.GitHubSourceAction(
             action_name="GitHub",
             output=source_artifact,
-            oauth_token=cdk.SecretValue.secrets_manager("codepipelines-github-token"),
+            oauth_token=SecretValue.secrets_manager("codepipelines-inference-repos-pat"),
             owner=resource_names["repo_owner"],
             repo=resource_names["repo_name"],
             branch=resource_names["repo_branch"]
@@ -29,7 +30,8 @@ class CondaBuildCdkStack(cdk.Stack):
                     directory="../",
                     file=resource_names["dockerfile_name"]
                 ),
-                "privileged": True
+                "privileged": True,
+                "compute_type": codebuild.ComputeType.LARGE
             },
             environment_variables={
                 'ssh_key': codebuild.BuildEnvironmentVariable(

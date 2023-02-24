@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import re
-from aws_cdk import core as cdk
+from aws_cdk import App
 from conda_build_cdk.conda_build_cdk_stack import CondaBuildCdkStack
 
 PROJECT_REPO = "pdfminer.six"
@@ -15,7 +15,7 @@ RESOURCE_NAMES = {
     'conda_channel_name': "brain-engine"
 }
 
-app = cdk.App()
+app = App()
 CondaBuildCdkStack(
     app,
     RESOURCE_NAMES["project_name"] + "Stack",
