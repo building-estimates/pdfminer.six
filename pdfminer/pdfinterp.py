@@ -1077,7 +1077,8 @@ class PDFPageInterpreter:
                     "'", "_q"
                 )
                 if hasattr(self, method):
-                    self.device.set_current_pdf_command_index(current_pdf_command_index)
+                    if hasattr(self.device, "set_current_pdf_command_index"):
+                        self.device.set_current_pdf_command_index(current_pdf_command_index)
                     func = getattr(self, method)
                     nargs = func.__code__.co_argcount - 1
                     if nargs:
