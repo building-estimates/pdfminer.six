@@ -855,16 +855,16 @@ def intersect_paths(ccp, curpath):
         elif isinstance(object, LineString):
             intersection_paths = intersection_paths + linestring_to_path(object)
         elif isinstance(object, MultiLineString):
-            for linestring in object:
+            for linestring in object.geoms:
                 intersection_paths = intersection_paths + linestring_to_path(linestring)
         elif isinstance(object, GeometryCollection):
-            for geom in object:
+            for geom in object.geoms:
                 if isinstance(geom, Polygon):
                     intersection_paths = intersection_paths + polygon_to_path(geom)
                 elif isinstance(geom, LineString):
                     intersection_paths = intersection_paths + linestring_to_path(geom)
                 elif isinstance(geom, MultiLineString):
-                    for linestring in geom:
+                    for linestring in geom.geoms:
                         intersection_paths = intersection_paths + \
                             linestring_to_path(linestring)
                 else:
