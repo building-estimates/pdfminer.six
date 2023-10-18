@@ -761,7 +761,38 @@ class Plane(Generic[LTComponentT]):
                     continue
                 yield obj
 
+def binomial(i, n):
+    # pylint: disable=C0103
+    """Binomial coefficient"""
+    return math.factorial(n) / float(
+        math.factorial(i) * math.factorial(n - i))
 
+
+def bernstein(t, i, n):
+    # pylint: disable=C0103
+    """Bernstein polynomial"""
+    return binomial(i, n) * (t ** i) * ((1 - t) ** (n - i))
+
+
+def bezier(t, points):
+    # pylint: disable=C0103
+    """Calculate coordinate of a point on a bezier curve B(t) for 0<=t<=1"""
+    n = len(points) - 1
+    x = y = 0
+    for i, pos in enumerate(points):
+        bern = bernstein(t, i, n)
+        x += pos[0] * bern
+        y += pos[1] * bern
+    return (x, y)
+
+
+def bezier_curve_range(n, points):
+    # pylint: disable=C0103
+    """Iterate over 'n' points on a bezier curve given a set of control points"""
+    for i in range(n):
+        t = i / float(n - 1)
+        yield bezier(t, points)
+        
 def intersect_paths(ccp, curpath):
     # In the simplest case (most of the time), curpath usually lies entirely inside ccp region
     # in that case all bellow code can be replaced by just 1 line:
@@ -788,6 +819,7 @@ def intersect_paths(ccp, curpath):
 
     # form geometric objects from curpath then intersect each of them to ccp polygon(s)
     polyline_paths = []
+    bezier_steps = 10
 
     for point in curpath:
         if point[0] == 'm':  # move to
@@ -819,6 +851,15 @@ def intersect_paths(ccp, curpath):
                 and not (math.isclose(polyline_paths[-1][0][0], polyline_paths[-1][-1][0])
                          and math.isclose(polyline_paths[-1][0][1], polyline_paths[-1][-1][1]))):
                 polyline_paths[-1].append(polyline_paths[-1][0])
+        elif point[0] == 'c':  # curve to
+            control_points = (
+                (polyline_paths[-1][-1][0], polyline_paths[-1][-1][1]),
+                (point[1], point[2]),
+                (point[3], point[4]),
+                (point[5], point[6]))
+
+            for curve_point in bezier_curve_range(bezier_steps, control_points):
+                polyline_paths[-1].append([curve_point[0], curve_point[1]])
         else:
             return []
 
