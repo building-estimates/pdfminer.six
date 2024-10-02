@@ -367,6 +367,9 @@ class PDFStream(PDFObject):
                 raise PDFNotImplementedError("/Crypt filter is unsupported")
             else:
                 raise PDFNotImplementedError("Unsupported filter: %r" % f)
+            # resolve params if necessary
+            if isinstance(params, PDFObjRef):
+                params = params.resolve()
             # apply predictors
             if params and "Predictor" in params:
                 pred = int_value(params["Predictor"])
