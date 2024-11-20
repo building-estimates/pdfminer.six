@@ -503,7 +503,7 @@ class LTTextContainer(LTExpandableContainer[LTItemT], LTText):
                     previous_obj = obj
                     continue
 
-                if obj._text == previous_obj._text and self.get_iou(previous_obj, obj) > 0.99:
+                if obj._text == previous_obj._text and self.get_iou(previous_obj, obj) > 0.5:
                     previous_obj = obj
                     continue                    
 
