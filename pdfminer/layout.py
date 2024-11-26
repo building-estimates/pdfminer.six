@@ -466,10 +466,55 @@ class LTTextContainer(LTExpandableContainer[LTItemT], LTText):
         LTExpandableContainer.__init__(self)
         return
 
-    def get_text(self) -> str:
-        return "".join(
-            cast(LTText, obj).get_text() for obj in self if isinstance(obj, LTText)
-        )
+    def get_iou(self, previous_obj, current_obj):
+        """Get the intersection area for two bounding boxes relative to the union of the two bboxes        
+        iou value in [0, 1]
+        """
+        # determine the coordinates of the intersection rectangle
+        tlx = max(previous_obj.x0, current_obj.x0)
+        tly = max(previous_obj.y0, current_obj.y0)
+        brx = min(previous_obj.x1, current_obj.x1)
+        bry = min(previous_obj.y1, current_obj.y1)
+
+        if brx <= tlx or bry <= tly:
+            intersection_bbox = [0,0,0,0]
+        else:
+            intersection_bbox = [tlx, tly, (brx-tlx), (bry-tly)]        
+
+        if intersection_bbox[2] == 0 or intersection_bbox[3] == 0:
+            return 0.0
+
+        intersection_area = intersection_bbox[2] * intersection_bbox[3]
+        union_area = (previous_obj.width * previous_obj.height) + (current_obj.width * current_obj.height)
+
+        iou = intersection_area / float(union_area - intersection_area)
+        assert iou >= 0.0
+        assert iou <= 1.0
+
+        return iou
+
+    def remove_repeated_chars(self):
+        char_objs = []
+        previous_obj = None
+        for obj in self:                    
+            if isinstance(obj, LTText):
+                if previous_obj is None:
+                    char_objs.append(obj)
+                    previous_obj = obj
+                    continue
+
+                if obj._text == previous_obj._text and self.get_iou(previous_obj, obj) > 0.5:
+                    previous_obj = obj
+                    continue                    
+
+                char_objs.append(obj)
+                previous_obj = obj
+
+        return char_objs
+    
+    def get_text(self) -> str:        
+        clean_objs = self.remove_repeated_chars()
+        return "".join(cast(LTText, obj).get_text() for obj in clean_objs if isinstance(obj, LTText))        
 
 
 TextLineElement = Union[LTChar, LTAnno]
