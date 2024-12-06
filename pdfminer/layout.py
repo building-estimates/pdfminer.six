@@ -497,7 +497,7 @@ class LTTextContainer(LTExpandableContainer[LTItemT], LTText):
         char_objs = []
         previous_obj = None
         for obj in self:                    
-            if isinstance(obj, LTText):
+            if isinstance(obj, LTText) and not isinstance(obj, LTAnno):
                 if previous_obj is None:
                     char_objs.append(obj)
                     previous_obj = obj
