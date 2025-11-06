@@ -8,16 +8,16 @@ source:
 
 requirements:
   build:
-    - python 3.8
+    - python 3.13
     - setuptools
-    - numpy 1.21
+    - numpy 1.26
     - chardet
     - cryptography
     - sortedcontainers
 
   run:
-    - python 3.8
-    - numpy 1.21
+    - python 3.13
+    - numpy 1.26
     - chardet
     - cryptography
     - sortedcontainers
