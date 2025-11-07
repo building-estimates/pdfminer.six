@@ -8,19 +8,17 @@ source:
 requirements:
   build:
     # Changed to target the latest stable Python versions (e.g., 3.12)
-    - python >=3.11,<3.13
-    - setuptools
-    # Add '* nompi' to explicitly exclude NumPy builds that depend on MPI.
-    - numpy * nompi
+    - python 
+    - setuptools    
+    - numpy
     - chardet
     - cryptography
     - sortedcontainers
 
   run:
     # Changed to target the latest stable Python versions (e.g., 3.12)
-    - python >=3.11,<3.13
-    # Add '* nompi' to explicitly exclude NumPy builds that depend on MPI.
-    - numpy * nompi
+    - python     
+    - numpy
     - chardet
     - cryptography
     - sortedcontainers

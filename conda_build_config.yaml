@@ -1,0 +1,5 @@
+# conda_build_config.yaml
+python:
+  - 3.12   # Pin to your target Python version
+numpy:
+  - 1.26   # Use a modern, Python 3.12 compatible NumPy version
